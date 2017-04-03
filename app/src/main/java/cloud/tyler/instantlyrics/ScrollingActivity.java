@@ -1,11 +1,17 @@
 package cloud.tyler.instantlyrics;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.text.Html;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,9 +27,16 @@ import org.jsoup.select.Elements;
 public class ScrollingActivity extends AppCompatActivity
 {
 
+    //Class Variables
     String lyricsString = "No Lyrics Found";
-    String query = "Baby Got Back - Sir Mix-a-lot";
     boolean urlFound = false;
+    private static ScrollingActivity ins;
+    String currentSong = "Baby Got Back - Sir Mix-A-Lot";
+
+    public static ScrollingActivity getInstace()
+    {
+        return ins;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +44,7 @@ public class ScrollingActivity extends AppCompatActivity
         setContentView(R.layout.activity_scrolling);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        ins = this;
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -40,9 +54,32 @@ public class ScrollingActivity extends AppCompatActivity
                         .setAction("Action", null).show();
             }
         });
+    }
 
+    // Handling the received Intents for the "song" event
+    private BroadcastReceiver songReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // Extract data included in the Intent
+            toast("Received Song: " + intent.getStringExtra("song") + intent.getDataString());
+        }
+    };
 
-        getLyrics();
+    @Override
+    public void onResume() {
+        super.onResume();
+        // This registers mMessageReceiver to receive messages.
+        LocalBroadcastManager.getInstance(this)
+                .registerReceiver(songReceiver,
+                        new IntentFilter("song"));
+    }
+
+    @Override
+    protected void onPause() {
+        // Unregister since the activity is not visible
+        LocalBroadcastManager.getInstance(this)
+                .unregisterReceiver(songReceiver);
+        super.onPause();
     }
 
     @Override
@@ -68,7 +105,7 @@ public class ScrollingActivity extends AppCompatActivity
 
     /**
      * Displays a toast on Android, as well as a System out
-     * @param s
+     * @param s, the string required
      */
     public void toast(String s)
     {
@@ -80,17 +117,26 @@ public class ScrollingActivity extends AppCompatActivity
     /**
      * Gets the lyrics for the provided song.
      */
-    public void getLyrics()
+    public void getLyrics(String s)
     {
+        String oldSong = currentSong;
+        currentSong = s;
+
+        if(oldSong.matches(currentSong))
+        {
+            toast("Same Song");
+            return;
+        }
+        
         try
         {
-            (new ParseURL() ).execute(new String[]{"http://search.azlyrics.com/search.php?q=" + query});
+            (new ParseURL() ).execute(new String[]{"http://search.azlyrics.com/search.php?q=" + s});
             TextView lyrics = (TextView)findViewById(R.id.lyrics);
             lyrics.setText(lyricsString);
         } catch (Exception e)
         {
-            String s = Log.getStackTraceString(e);
-            toast(s);
+            String error = Log.getStackTraceString(e);
+            toast(error);
         }
     }
 
@@ -98,7 +144,7 @@ public class ScrollingActivity extends AppCompatActivity
 
         @Override
         protected String doInBackground(String... strings) {
-            StringBuffer buffer = new StringBuffer();
+            StringBuilder buffer = new StringBuilder();
             try {
                 Log.d("JSwa", "Connecting to ["+strings[0]+"]");
                 Document doc  = Jsoup.connect(strings[0]).get();
@@ -163,10 +209,13 @@ public class ScrollingActivity extends AppCompatActivity
                 s = s.split("that. -->")[1];
                 s = s.split("<!-- Mx")[0];
 
+                s = Html.fromHtml(s).toString();
+
                 //Display Lyrics
                 TextView lyrics = (TextView)findViewById(R.id.lyrics);
                 lyrics.setText(s);
             }
         }
     }
+
 }
