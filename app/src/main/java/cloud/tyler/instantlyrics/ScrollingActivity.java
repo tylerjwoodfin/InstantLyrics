@@ -122,12 +122,12 @@ public class ScrollingActivity extends AppCompatActivity
         String oldSong = currentSong;
         currentSong = s;
 
+        //Intents are received multiple times- don't try to refresh lyrics unnecessarily.
         if(oldSong.matches(currentSong))
         {
-            toast("Same Song");
             return;
         }
-        
+
         try
         {
             (new ParseURL() ).execute(new String[]{"http://search.azlyrics.com/search.php?q=" + s});
@@ -197,12 +197,22 @@ public class ScrollingActivity extends AppCompatActivity
             if(!urlFound)
             {
 
-                s = s.split("1. <a href=\"")[1];
-                s = s.split("\"")[0];
-                //s is url
-                urlFound = true;
+                if(s.contains("1. <a href="))
+                {
 
-                (new ParseURL() ).execute(new String[]{s}); //Get lyrics from URL
+                    s = s.split("1. <a href=\"")[1];
+                    s = s.split("\"")[0];
+                    //s is url
+                    urlFound = true;
+
+                    (new ParseURL() ).execute(new String[]{s}); //Get lyrics from URL
+                }
+                else
+                {
+                    //Display Error
+                    TextView lyrics = (TextView)findViewById(R.id.lyrics);
+                    lyrics.setText("Lyrics are unavailable for this song.");
+                }
             }
             else
             {
